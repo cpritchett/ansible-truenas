@@ -1,0 +1,208 @@
+---
+# Integration tests for truenas_incus_instance module
+# These tests require a TrueNAS SCALE 25.04+ system with Incus configured
+
+- name: Set test variables
+  set_fact:
+    test_container_name: "ansible-test-{{ ansible_date_time.epoch }}"
+    api_url: "{{ truenas_api_url | default('https://localhost/api/v2.0') }}"
+    api_key: "{{ truenas_api_key }}"
+
+- name: Ensure test container doesn't exist
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: absent
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  ignore_errors: yes
+
+- name: Test 1 - Create container
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: present
+    type: CONTAINER
+    source:
+      type: IMAGE
+      alias: debian/12
+      server: https://images.linuxcontainers.org
+    config:
+      limits.cpu: "1"
+      limits.memory: "512MB"
+      boot.autostart: "false"
+    devices:
+      root:
+        type: disk
+        path: /
+        pool: default
+        size: 5GB
+      eth0:
+        type: nic
+        network: incusbr0
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: create_result
+
+- name: Verify container creation
+  assert:
+    that:
+      - create_result.changed == true
+      - create_result.instance.name == test_container_name
+      - create_result.instance.id is defined
+
+- name: Test 2 - Create container idempotency
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: present
+    type: CONTAINER
+    source:
+      type: IMAGE
+      alias: debian/12
+    config:
+      limits.cpu: "1"
+      limits.memory: "512MB"
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: create_idempotent
+
+- name: Verify idempotency
+  assert:
+    that:
+      - create_idempotent.changed == false
+
+- name: Test 3 - Start container
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: started
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: start_result
+
+- name: Verify container start
+  assert:
+    that:
+      - start_result.changed == true
+
+- name: Test 4 - Start container idempotency
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: started
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: start_idempotent
+
+- name: Verify start idempotency
+  assert:
+    that:
+      - start_idempotent.changed == false
+
+- name: Test 5 - Stop container
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: stopped
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: stop_result
+
+- name: Verify container stop
+  assert:
+    that:
+      - stop_result.changed == true
+
+- name: Test 6 - Stop container idempotency
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: stopped
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: stop_idempotent
+
+- name: Verify stop idempotency
+  assert:
+    that:
+      - stop_idempotent.changed == false
+
+- name: Test 7 - Restart container
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: restarted
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: restart_result
+
+- name: Verify container restart
+  assert:
+    that:
+      - restart_result.changed == true
+
+- name: Test 8 - Check mode test
+  truenas_incus_instance:
+    name: "ansible-check-mode-test"
+    state: present
+    type: CONTAINER
+    source:
+      type: IMAGE
+      alias: debian/12
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  check_mode: yes
+  register: check_mode_result
+
+- name: Verify check mode
+  assert:
+    that:
+      - check_mode_result.changed == true
+
+- name: Test 9 - Verify check mode didn't create container
+  truenas_incus_instance:
+    name: "ansible-check-mode-test"
+    state: absent
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: check_mode_cleanup
+  ignore_errors: yes
+
+- name: Verify no container was created in check mode
+  assert:
+    that:
+      - check_mode_cleanup.changed == false
+
+- name: Test 10 - Delete container
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: absent
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: delete_result
+
+- name: Verify container deletion
+  assert:
+    that:
+      - delete_result.changed == true
+
+- name: Test 11 - Delete container idempotency
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: absent
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: delete_idempotent
+
+- name: Verify delete idempotency
+  assert:
+    that:
+      - delete_idempotent.changed == false
+
+- name: Test 12 - Error handling - non-existent container operations
+  truenas_incus_instance:
+    name: "non-existent-container"
+    state: started
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: error_test
+  failed_when: false
+
+- name: Verify error handling
+  assert:
+    that:
+      - error_test.failed == true
+      - "'does not exist' in error_test.msg"

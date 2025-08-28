@@ -1,0 +1,1 @@
+# Ansible collection documentation fragments package

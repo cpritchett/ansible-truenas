@@ -1,0 +1,143 @@
+---
+# Example playbook showing truenas_incus_instance and truenas_incus_exec usage
+# This demonstrates real-world container management scenarios
+
+- hosts: truenas
+  gather_facts: yes
+  collections:
+    - arensb.truenas
+  
+  vars:
+    truenas_api_url: "https://{{ inventory_hostname }}/api/v2.0"
+    truenas_api_key: "{{ api_key }}"  # Define this in your inventory or vault
+    
+  tasks:
+    - name: Create Debian 12 container for web development
+      truenas_incus_instance:
+        name: webdev-container
+        state: present
+        type: CONTAINER
+        source:
+          type: IMAGE
+          alias: debian/12
+          server: https://images.linuxcontainers.org
+        config:
+          limits.cpu: "4"
+          limits.memory: "4GB"
+          boot.autostart: "true"
+          security.nesting: "true"
+          security.privileged: "false"
+        devices:
+          root:
+            type: disk
+            path: /
+            pool: default
+            size: 20GB
+          eth0:
+            type: nic
+            network: incusbr0
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+      register: container_result
+
+    - name: Start the container
+      truenas_incus_instance:
+        name: webdev-container
+        state: started
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Update package cache
+      truenas_incus_exec:
+        name: webdev-container
+        command: apt-get update
+        timeout: 300
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Install essential development packages
+      truenas_incus_exec:
+        name: webdev-container
+        command: |
+          apt-get install -y \
+            curl \
+            wget \
+            git \
+            nodejs \
+            npm \
+            python3 \
+            python3-pip \
+            nginx \
+            systemctl
+        timeout: 600
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Create development user
+      truenas_incus_exec:
+        name: webdev-container
+        command: |
+          useradd -m -s /bin/bash developer
+          usermod -aG sudo developer
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Setup SSH keys for developer user
+      truenas_incus_exec:
+        name: webdev-container
+        command: |
+          mkdir -p /home/developer/.ssh
+          chmod 700 /home/developer/.ssh
+          chown developer:developer /home/developer/.ssh
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Configure nginx default site
+      truenas_incus_exec:
+        name: webdev-container
+        command: |
+          echo '<h1>Development Container Ready</h1>' > /var/www/html/index.html
+          systemctl enable nginx
+          systemctl start nginx
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Install global npm packages
+      truenas_incus_exec:
+        name: webdev-container
+        command: npm install -g @vue/cli create-react-app
+        timeout: 300
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Create sample project directory
+      truenas_incus_exec:
+        name: webdev-container
+        command: mkdir -p /home/developer/projects
+        chdir: /home/developer
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Set ownership of projects directory
+      truenas_incus_exec:
+        name: webdev-container
+        command: chown -R developer:developer /home/developer/projects
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Display container information
+      debug:
+        msg: |
+          Container '{{ container_result.instance.name }}' is ready!
+          ID: {{ container_result.instance.id }}
+          Status: Running
+          
+          Development environment includes:
+          - Node.js and npm
+          - Python 3 and pip
+          - Git
+          - Nginx web server
+          - Vue CLI and Create React App
+          
+          Connect to the container using:
+          incus exec webdev-container -- su - developer

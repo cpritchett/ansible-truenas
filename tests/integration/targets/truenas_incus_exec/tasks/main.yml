@@ -1,0 +1,292 @@
+---
+# Integration tests for truenas_incus_exec module
+# These tests require a TrueNAS SCALE 25.04+ system with Incus configured
+# and a running container for testing
+
+- name: Set test variables
+  set_fact:
+    test_container_name: "ansible-exec-test-{{ ansible_date_time.epoch }}"
+    api_url: "{{ truenas_api_url | default('https://localhost/api/v2.0') }}"
+    api_key: "{{ truenas_api_key }}"
+
+- name: Create test container
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: present
+    type: CONTAINER
+    source:
+      type: IMAGE
+      alias: debian/12
+      server: https://images.linuxcontainers.org
+    config:
+      limits.cpu: "1"
+      limits.memory: "512MB"
+    devices:
+      root:
+        type: disk
+        path: /
+        pool: default
+        size: 5GB
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+
+- name: Start test container
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: started
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+
+- name: Wait for container to be ready
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: echo "Container ready"
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  retries: 10
+  delay: 5
+  register: readiness_check
+  until: readiness_check.rc == 0
+
+- name: Test 1 - Basic command execution
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: echo "Hello World"
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: basic_exec
+
+- name: Verify basic execution
+  assert:
+    that:
+      - basic_exec.changed == true
+      - basic_exec.rc == 0
+      - "'Hello World' in basic_exec.stdout"
+
+- name: Test 2 - Command with return code
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: exit 42
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: exit_code_test
+  failed_when: false
+
+- name: Verify return code handling
+  assert:
+    that:
+      - exit_code_test.rc == 42
+
+- name: Test 3 - List command execution
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: ['echo', 'list', 'command']
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: list_command
+
+- name: Verify list command
+  assert:
+    that:
+      - list_command.rc == 0
+      - "'list command' in list_command.stdout"
+
+- name: Test 4 - Environment variables
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: env | grep TEST_VAR
+    environment:
+      TEST_VAR: "test_value"
+      ANOTHER_VAR: "another_value"
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: env_test
+
+- name: Verify environment variables
+  assert:
+    that:
+      - env_test.rc == 0
+      - "'TEST_VAR=test_value' in env_test.stdout"
+
+- name: Test 5 - Change directory
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: pwd
+    chdir: /tmp
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: chdir_test
+
+- name: Verify directory change
+  assert:
+    that:
+      - chdir_test.rc == 0
+      - "'/tmp' in chdir_test.stdout"
+
+- name: Test 6 - Creates condition (file doesn't exist)
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: touch /tmp/test_file
+    creates: /tmp/test_file
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: creates_test
+
+- name: Verify creates condition executed
+  assert:
+    that:
+      - creates_test.changed == true
+      - creates_test.rc == 0
+
+- name: Test 7 - Creates condition (file exists - should skip)
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: echo "This should not run"
+    creates: /tmp/test_file
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: creates_skip
+
+- name: Verify creates condition skipped
+  assert:
+    that:
+      - creates_skip.changed == false
+      - "'already exists' in creates_skip.msg"
+
+- name: Test 8 - Removes condition (file exists)
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: rm -f /tmp/test_file
+    removes: /tmp/test_file
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: removes_test
+
+- name: Verify removes condition executed
+  assert:
+    that:
+      - removes_test.changed == true
+      - removes_test.rc == 0
+
+- name: Test 9 - Removes condition (file doesn't exist - should skip)
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: echo "This should not run"
+    removes: /tmp/test_file
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: removes_skip
+
+- name: Verify removes condition skipped
+  assert:
+    that:
+      - removes_skip.changed == false
+      - "'does not exist' in removes_skip.msg"
+
+- name: Test 10 - Complex command with pipes
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: |
+      echo "line1
+      line2
+      line3" | wc -l
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: complex_command
+
+- name: Verify complex command
+  assert:
+    that:
+      - complex_command.rc == 0
+      - "'3' in complex_command.stdout"
+
+- name: Test 11 - Timeout test (short timeout)
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: sleep 2
+    timeout: 1
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: timeout_test
+  failed_when: false
+
+- name: Verify timeout handling
+  assert:
+    that:
+      - timeout_test.rc != 0
+
+- name: Test 12 - Check mode
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: echo "check mode test"
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  check_mode: yes
+  register: check_mode_test
+
+- name: Verify check mode
+  assert:
+    that:
+      - check_mode_test.changed == true
+      - "'check mode' in check_mode_test.msg"
+
+- name: Test 13 - Error handling - non-existent container
+  truenas_incus_exec:
+    name: "non-existent-container"
+    command: echo "test"
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: error_test
+  failed_when: false
+
+- name: Verify error handling
+  assert:
+    that:
+      - error_test.failed == true
+      - "'not found' in error_test.msg"
+
+- name: Test 14 - Install and test package
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: |
+      apt-get update && apt-get install -y curl
+    timeout: 300
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: package_install
+
+- name: Verify package installation
+  assert:
+    that:
+      - package_install.rc == 0
+
+- name: Test 15 - Use installed package
+  truenas_incus_exec:
+    name: "{{ test_container_name }}"
+    command: curl --version
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  register: package_test
+
+- name: Verify package usage
+  assert:
+    that:
+      - package_test.rc == 0
+      - "'curl' in package_test.stdout"
+
+# Cleanup
+- name: Cleanup - Stop test container
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: stopped
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  ignore_errors: yes
+
+- name: Cleanup - Delete test container
+  truenas_incus_instance:
+    name: "{{ test_container_name }}"
+    state: absent
+    api_url: "{{ api_url }}"
+    api_key: "{{ api_key }}"
+  ignore_errors: yes

@@ -1,0 +1,210 @@
+---
+# Example playbook for setting up Matchbox in an Incus container
+# Matchbox is a service for network boot and provisioning
+
+- hosts: truenas
+  gather_facts: yes
+  collections:
+    - arensb.truenas
+  
+  vars:
+    truenas_api_url: "https://{{ inventory_hostname }}/api/v2.0"
+    truenas_api_key: "{{ api_key }}"  # Define this in your inventory or vault
+    matchbox_version: "v0.10.0"
+    
+  tasks:
+    - name: Create Matchbox container
+      truenas_incus_instance:
+        name: matchbox
+        state: present
+        type: CONTAINER
+        source:
+          type: IMAGE
+          alias: debian/12
+          server: https://images.linuxcontainers.org
+        config:
+          limits.cpu: "2"
+          limits.memory: "2GB"
+          boot.autostart: "true"
+          security.nesting: "false"
+          security.privileged: "false"
+        devices:
+          root:
+            type: disk
+            path: /
+            pool: default
+            size: 10GB
+          eth0:
+            type: nic
+            network: incusbr0
+          # Port forwarding for Matchbox services
+          matchbox-http:
+            type: proxy
+            listen: tcp:0.0.0.0:8080
+            connect: tcp:127.0.0.1:8080
+          matchbox-grpc:
+            type: proxy
+            listen: tcp:0.0.0.0:8081
+            connect: tcp:127.0.0.1:8081
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Start Matchbox container
+      truenas_incus_instance:
+        name: matchbox
+        state: started
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Update package cache
+      truenas_incus_exec:
+        name: matchbox
+        command: apt-get update
+        timeout: 300
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Install required packages
+      truenas_incus_exec:
+        name: matchbox
+        command: |
+          apt-get install -y \
+            wget \
+            systemd \
+            ca-certificates \
+            curl
+        timeout: 300
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Download Matchbox
+      truenas_incus_exec:
+        name: matchbox
+        command: |
+          wget https://github.com/poseidon/matchbox/releases/download/{{ matchbox_version }}/matchbox-{{ matchbox_version }}-linux-amd64.tar.gz
+          tar xzf matchbox-{{ matchbox_version }}-linux-amd64.tar.gz
+        chdir: /tmp
+        creates: /tmp/matchbox-{{ matchbox_version }}-linux-amd64
+        timeout: 300
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Install Matchbox binary
+      truenas_incus_exec:
+        name: matchbox
+        command: |
+          cp matchbox-{{ matchbox_version }}-linux-amd64/matchbox /usr/local/bin/
+          chmod +x /usr/local/bin/matchbox
+        chdir: /tmp
+        creates: /usr/local/bin/matchbox
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Create matchbox user
+      truenas_incus_exec:
+        name: matchbox
+        command: |
+          useradd -r -s /bin/false -d /var/lib/matchbox matchbox
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Create Matchbox directories
+      truenas_incus_exec:
+        name: matchbox
+        command: |
+          mkdir -p /etc/matchbox
+          mkdir -p /var/lib/matchbox/{assets,groups,ignition,profiles}
+          chown -R matchbox:matchbox /var/lib/matchbox
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Create Matchbox configuration
+      truenas_incus_exec:
+        name: matchbox
+        command: |
+          cat > /etc/matchbox/config.yaml << 'EOF'
+          # Matchbox configuration
+          address: "0.0.0.0:8080"
+          rpc-address: "0.0.0.0:8081"
+          data-path: "/var/lib/matchbox"
+          assets-path: "/var/lib/matchbox/assets"
+          log-level: "info"
+          EOF
+        creates: /etc/matchbox/config.yaml
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Create systemd service file
+      truenas_incus_exec:
+        name: matchbox
+        command: |
+          cat > /etc/systemd/system/matchbox.service << 'EOF'
+          [Unit]
+          Description=Matchbox
+          Documentation=https://github.com/poseidon/matchbox
+          After=network.target
+
+          [Service]
+          Type=notify
+          User=matchbox
+          Group=matchbox
+          ExecStart=/usr/local/bin/matchbox -config=/etc/matchbox/config.yaml
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+        creates: /etc/systemd/system/matchbox.service
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Enable and start Matchbox service
+      truenas_incus_exec:
+        name: matchbox
+        command: |
+          systemctl daemon-reload
+          systemctl enable matchbox
+          systemctl start matchbox
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+
+    - name: Wait for Matchbox to be ready
+      truenas_incus_exec:
+        name: matchbox
+        command: curl -f http://localhost:8080/
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+      retries: 10
+      delay: 5
+      register: matchbox_health
+      until: matchbox_health.rc == 0
+
+    - name: Check Matchbox status
+      truenas_incus_exec:
+        name: matchbox
+        command: systemctl status matchbox --no-pager
+        api_url: "{{ truenas_api_url }}"
+        api_key: "{{ truenas_api_key }}"
+      register: matchbox_status
+
+    - name: Display Matchbox information
+      debug:
+        msg: |
+          Matchbox is now running in container 'matchbox'!
+          
+          Services available:
+          - HTTP API: http://{{ inventory_hostname }}:8080
+          - gRPC API: {{ inventory_hostname }}:8081
+          
+          Configuration directory: /etc/matchbox/
+          Data directory: /var/lib/matchbox/
+          
+          To add boot profiles and groups, place files in:
+          - /var/lib/matchbox/profiles/
+          - /var/lib/matchbox/groups/
+          - /var/lib/matchbox/ignition/
+          - /var/lib/matchbox/assets/
+          
+          Service status:
+          {{ matchbox_status.stdout }}
