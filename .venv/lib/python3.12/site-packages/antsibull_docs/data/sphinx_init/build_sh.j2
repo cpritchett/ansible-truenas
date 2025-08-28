@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Copyright (c) Ansible Project
+# GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Created with antsibull-docs @{ antsibull_docs_version }@
+
+set -e
+
+pushd "$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+trap "{ popd; }" EXIT
+
+# Create collection documentation
+mkdir -p rst
+chmod og-w rst  # antsibull-docs wants that directory only readable by itself
+antsibull-docs \
+    --config-file antsibull-docs.cfg \
+{% if use_current %}
+{%   if collections | length > 0 %}
+    collection \
+    --cleanup everything \
+{%     if fail_on_error %}
+    --fail-on-error \
+{%     endif %}
+    --use-current \
+{%     if squash_hierarchy %}
+    --squash-hierarchy \
+{%     endif %}
+    --dest-dir rst \
+    @{ ' '.join(collections) }@
+{%   else %}
+    current \
+    --cleanup everything \
+{%     if fail_on_error %}
+    --fail-on-error \
+{%     endif %}
+    --dest-dir rst
+{%   endif %}
+{% else %}
+    collection \
+    --cleanup everything \
+{%     if fail_on_error %}
+    --fail-on-error \
+{%     endif %}
+{%     if collection_version != '@latest' %}
+    --collection-version @{ collection_version }@ \
+{%     endif %}
+{%     if squash_hierarchy %}
+    --squash-hierarchy \
+{%     endif %}
+    --output-format @{ output_format }@ \
+    --dest-dir rst \
+    @{ ' '.join(collections) }@
+{% endif %}
+
+# Build Sphinx site
+{% if lenient %}
+sphinx-build -M html rst build -c .
+{% else %}
+sphinx-build -M html rst build -c . -W --keep-going
+{% endif %}

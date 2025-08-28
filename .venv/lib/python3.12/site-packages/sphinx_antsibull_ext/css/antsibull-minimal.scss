@@ -1,0 +1,348 @@
+/* Copyright (c) Ansible and contributors */
+/* GNU General Public License v3.0+ (see https://www.gnu.org/licenses/gpl-3.0.txt) */
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+/* INSERT COLOR SCHEME HERE */
+
+.ansible-links {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+
+  > * {
+    margin: 2px 4px !important;
+  }
+
+  > li {
+    list-style: none !important;
+
+    > p {
+      display: inline;
+    }
+  }
+
+  a {
+    display: block;
+    padding: 4px 12px;
+
+    cursor: pointer;
+    border-radius: 3px;
+
+    background-color: var(--antsibull-links-background);
+    color: var(--antsibull-links-text);
+
+    &:hover, &:active, &:focus {
+      background-color: var(--antsibull-links-background-active);
+    }
+
+    &:focus {
+      outline: 3px solid var(--antsibull-links-focus-outline);
+    }
+  }
+}
+
+// Documentation table (for module options and return values)
+table.documentation-table {
+  border-bottom: 1px solid var(--antsibull-table-border);
+  border-right: 1px solid var(--antsibull-table-border);
+
+  th {
+    background-color: var(--antsibull-table-background-header);
+  }
+
+  td, th {
+    padding: 4px;
+    border-left: 1px solid var(--antsibull-table-border);
+    border-top: 1px solid var(--antsibull-table-border);
+  }
+
+  td.elbow-placeholder {
+    border-top: 0;
+    width: 30px;
+    min-width: 30px;
+  }
+
+  // More table formatting
+  td {
+    vertical-align: top;
+  }
+  td:first-child {
+    white-space: nowrap;
+  }
+
+  // Direct links to options / return values
+  tr {
+    .ansibleOptionLink {
+      display: inline-block;
+
+      &::after {
+        content: "🔗";
+        opacity: 0;
+      }
+    }
+
+    &:hover .ansibleOptionLink::after {
+      opacity: 1;
+    }
+
+    &:nth-child(odd) {
+      background-color: var(--antsibull-table-background-odd);
+    }
+    &:nth-child(even) {
+      background-color: var(--antsibull-table-background-even);
+    }
+  }
+}
+
+table.ansible-option-table {
+  // This is the default, but for some reason sphinx_ansible_theme sets this to 'display: block',
+  // which totally wrecks the layout. (The height 'hack' below then ensures that the table actually
+  // has height 1px, which basically hides it.)
+  display: table;
+
+  border-color: var(--antsibull-table-border) !important;
+  
+  // The following is basically ignored, but together with the `height: 100%` for <tr>
+  // and the two `height: inherit`s for <td> and <div> makes sure that the <div> inside
+  // the <td> has full height.
+  height: 1px;
+
+  tr {
+    height: 100%;
+  }
+
+  td, th {
+    border-color: var(--antsibull-table-border) !important;
+    border-bottom: none !important;
+    vertical-align: top !important;
+  }
+
+  th > p {
+    font-size: initial !important;
+  }
+
+  thead tr {
+    background-color: var(--antsibull-table-background-header);
+  }
+
+  tbody {
+    .row-odd td {
+      background-color: var(--antsibull-table-background-odd) !important;
+    }
+
+    .row-even td {
+      background-color: var(--antsibull-table-background-even) !important;
+    }
+  }
+
+  ul > li > p {
+    margin: 0 !important;
+  }
+
+  ul > li > div[class^="highlight"] {
+    margin-bottom: 4px !important;
+  }
+
+  p.ansible-option-title {
+    display: inline;
+  }
+
+  .ansible-option-type-line {
+    font-size: small;
+    margin-bottom: 0;
+  }
+
+  .ansible-option-type {
+    color: var(--antsibull-option-type);
+  }
+
+  .ansible-option-elements {
+    color: var(--antsibull-option-elements);
+  }
+
+  .ansible-option-required {
+    color: var(--antsibull-option-required);
+  }
+
+  .ansible-option-versionadded {
+    font-size: small;
+    color: var(--antsibull-option-version-added);
+  }
+
+  .ansible-option-aliases {
+    color: var(--antsibull-option-aliases);
+    white-space: normal;
+  }
+
+  .ansible-option-line {
+    margin-top: 8px;
+  }
+
+  .ansible-option-choices-entry {
+  }
+
+  .ansible-option-default, .ansible-option-choices-default-mark {
+    color: var(--antsibull-option-default);
+  }
+
+  .ansible-option-default-bold {
+    color: var(--antsibull-option-default);
+  }
+
+  .ansible-option-sample {
+    color: var(--antsibull-option-sample);
+    word-wrap: break-word;
+    word-break: break-all;
+  }
+
+  .ansible-option-sample-bold {
+    color: var(--antsibull-option-sample-header);
+  }
+
+  .ansible-attribute-support-none {
+    color: var(--antsibull-attribute-support-none);
+  }
+
+  .ansible-attribute-support-partial {
+    color: var(--antsibull-attribute-support-partial);
+  }
+
+  .ansible-attribute-support-full {
+    color: var(--antsibull-attribute-support-full);
+  }
+
+  .ansible-attribute-support-na {
+    color: var(--antsibull-attribute-support-na);
+  }
+
+  .ansibleOptionLink {
+    display: inline-block;
+
+    &::after {
+      content: "🔗";
+      opacity: 0;
+    }
+  }
+
+  p {
+    margin: 0 0 8px;
+  }
+
+  tr:hover .ansibleOptionLink::after {
+    opacity: 1;
+  }
+
+  td {
+    padding: 0 !important;
+    white-space: normal;
+
+    > div.ansible-option-cell  {
+      padding: 8px 16px;
+      border-top: 1px solid var(--antsibull-table-border);
+    }
+  }
+
+  td:first-child {
+    height: inherit;
+    display: flex;
+    flex-direction: row;
+
+    > div.ansible-option-cell {
+      height: inherit;
+      flex: 1 0 auto;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+  }
+
+  .ansible-option-indent {
+    margin-left: 2em;
+    border-right: 1px solid var(--antsibull-table-border);
+  }
+
+  .ansible-attribute-support-label {
+    display: none;
+  }
+}
+
+@media (max-width: 1200px) {
+  table.ansible-option-table {
+    display: block;
+    height: unset;
+    border: none !important;
+  
+    thead {
+      display: none;
+    }
+  
+    tbody, tr, td {
+      display: block;
+      border: none !important;
+    }
+
+    tbody {
+      .row-odd td {
+        background-color: unset !important;
+      }
+
+      .row-even td {
+        background-color: unset !important;
+      }
+    }
+
+    td {
+      > div.ansible-option-cell {
+        border-top: none;
+      }
+
+      &:first-child > div.ansible-option-cell {
+        background-color: var(--antsibull-narrowtable-background) !important;
+      }
+    }
+
+    td:not(:first-child) {
+      display: flex;
+      flex-direction: row;
+      
+      > div.ansible-option-cell {
+        margin-left: 1em;
+      }
+    }
+
+    .ansible-option-indent, .ansible-option-indent-desc {
+      margin-left: 1em;
+    }
+
+    .ansible-option-indent, .ansible-option-indent-desc {
+      border: none;
+      border-right: solid 3px var(--antsibull-narrowtable-background);
+    }
+
+    .ansible-attribute-support-label {
+      display: unset;
+    }
+  }
+}
+
+.ansible-version-added {
+  font-style: italic;
+}
+
+.ansible-option, .ansible-option-value, .ansible-return-value {
+  a.reference.internal, a.reference.external {
+    color: unset;
+
+    &:hover {
+      color: unset;
+    }
+  }
+}
+
+.ansible-deprecation-marker {
+  border-radius: 1em;
+  border: 2px solid var(--antsibull-deprecation-border);
+  background-color: var(--antsibull-deprecation-background);
+  color: var(--antsibull-deprecation-color);
+  padding: 0.2em 0.4em;
+}

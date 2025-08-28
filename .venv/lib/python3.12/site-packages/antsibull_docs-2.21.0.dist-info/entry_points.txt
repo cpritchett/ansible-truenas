@@ -1,0 +1,2 @@
+[console_scripts]
+antsibull-docs = antsibull_docs.cli.antsibull_docs:main

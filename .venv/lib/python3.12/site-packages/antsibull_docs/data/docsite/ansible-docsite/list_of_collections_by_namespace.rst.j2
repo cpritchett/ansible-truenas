@@ -1,0 +1,45 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+{% from 'macros/deprecates.rst.j2' import collection_deprecation_marker with context -%}
+
+{% if not breadcrumbs %}
+:orphan:
+{% endif %}
+
+{% if antsibull_docs_version %}
+.. meta::
+  :antsibull-docs: @{ antsibull_docs_version }@
+
+{% endif %}
+.. _list_of_collections_@{ namespace }@:
+
+{% set title = ('Collections in the ' ~ (namespace | title) ~ ' Namespace') | rst_ify -%}
+
+@{ title }@
+@{ '=' * title|column_width }@
+
+{% if for_official_docsite %}
+These are the collections with docs hosted on `docs.ansible.com <https://docs.ansible.com/>`_ in the **@{ namespace }@** namespace.
+{% else %}
+These are the collections documented here in the **@{ namespace }@** namespace.
+{% endif %}
+
+{% for name in collections | sort %}
+* :anscollection:`@{ namespace }@.@{ name }@ <@{namespace}@.@{name}@>` @{ collection_deprecation_marker(collection_metadata[namespace ~ '.' ~ name]) }@
+{% else %}
+There is no collection in this namespace.
+{% endfor %}
+
+{% if breadcrumbs %}
+.. toctree::
+    :maxdepth: 1
+    :hidden:
+
+{%   for name in collections | sort %}
+    @{ name }@/index
+{%   endfor %}
+{% endif %}

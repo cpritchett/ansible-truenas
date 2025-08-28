@@ -1,0 +1,39 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+{% from 'macros/deprecates.rst.j2' import collection_deprecation_marker with context -%}
+
+:orphan:
+
+{% if antsibull_docs_version %}
+.. meta::
+  :antsibull-docs: @{ antsibull_docs_version }@
+
+{% endif %}
+.. _list_of_collections:
+
+Collection Index
+================
+
+{% if for_official_docsite %}
+These are the collections with docs hosted on `docs.ansible.com <https://docs.ansible.com/>`_.
+{% else %}
+These are the collections documented here.
+{% endif %}
+
+{% for name in collections | sort %}
+* :anscollection:`@{ name }@ <@{name}@>` @{ collection_deprecation_marker(collection_metadata[name]) }@
+{% endfor %}
+
+{% if breadcrumbs %}
+.. toctree::
+    :maxdepth: 1
+    :hidden:
+
+{%   for namespace in namespaces | sort %}
+    @{ namespace }@/index
+{%   endfor %}
+{% endif %}

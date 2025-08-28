@@ -1,0 +1,20 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+{% macro add(collection_links, collection_communication=None, collection=None) %}
+.. ansible-links::
+
+{%   for link in collection_links %}
+  - title: @{ link.description | antsibull_to_json }@
+    url: @{ link.url | antsibull_to_json }@
+    external: true
+{%   endfor %}
+{%   if collection_communication and collection and not collection_communication.empty %}
+  - title: Communication
+    ref: @{rst_collection_ref(collection, "communication")}@
+{%   endif %}
+
+{% endmacro %}

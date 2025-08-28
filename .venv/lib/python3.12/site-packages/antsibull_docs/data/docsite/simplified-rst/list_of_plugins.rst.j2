@@ -1,0 +1,36 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+{% if antsibull_docs_version %}
+.. Created with antsibull-docs @{ antsibull_docs_version }@
+{% else %}
+.. Created with antsibull-docs
+{% endif %}
+
+{% from 'macros/deprecates.rst.j2' import deprecation_marker with context -%}
+
+{% if plugin_type == 'module' %}
+Index of all Modules
+====================
+{% elif plugin_type == 'role' %}
+Index of all Roles
+==================
+{% else %}
+Index of all @{ plugin_type | capitalize }@ Plugins
+=============@{ '=' * (plugin_type | column_width) }@========
+{% endif %}
+
+{% for collection_name, plugins in per_collection_plugins.items() | sort %}
+@{ collection_name }@
+@{ '-' * (collection_name | column_width) }@
+
+{%   for plugin_name, plugin_info in plugins.items() | sort %}
+* `@{ collection_name }@.@{ plugin_name }@ <@{ collection_name | replace('.', '/') }@/@{ get_plugin_filename(collection_name ~ '.' ~ plugin_name, plugin_type) }@>`_ -- @{ plugin_info.short_description | rst_ify(plugin_fqcn=collection_name ~ '.' ~ plugin_name, plugin_type=plugin_type) }@ @{ deprecation_marker(plugin_info) }@
+{%   endfor %}
+
+{% else %}
+No {% if plugin_type == 'module' %}module{% elif plugin_type == 'role' %}role{% else %}@{ plugin_type }@ plugin{% endif %} found.
+{% endfor %}

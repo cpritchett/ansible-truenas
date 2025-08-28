@@ -1,0 +1,80 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+{% macro in_rst(data, collection, indent, role_entrypoint=None) %}
+{%   if data %}
+
+@{ ' ' * indent }@
+{%-    if data['removed_at_date'] -%}
+Removed in: major release after @{ data['removed_at_date'] | rst_ify(role_entrypoint=role_entrypoint) }@
+{%-    elif data['removed_in'] -%}
+Removed in: version @{ data['removed_in'] | rst_ify(role_entrypoint=role_entrypoint) }@
+{%-    else -%}
+Removed in: a future release
+{%-    endif -%}
+{%-    if data['removed_from_collection'] and data['removed_from_collection'] != collection %}
+ of @{ data['removed_from_collection'] | rst_ify(role_entrypoint=role_entrypoint) }@
+{%     endif %}
+
+
+@{ ('Why: ' ~ data['why'] | rst_ify(role_entrypoint=role_entrypoint)) | rst_indent(indent, first=true) }@
+
+@{ ('Alternative: ' ~ data['alternative'] | rst_ify(role_entrypoint=role_entrypoint)) | rst_indent(indent, first=true) }@
+
+{%   endif %}
+{% endmacro %}
+
+
+{% macro in_html(data, collection, role_entrypoint=None) %}
+{%   if data %}
+  <p>
+{%-    if data['removed_at_date'] -%}
+Removed in: major release after @{ data['removed_at_date'] | html_ify(role_entrypoint=role_entrypoint) }@
+{%-    elif data['removed_in'] -%}
+Removed in: version @{ data['removed_in'] | html_ify(role_entrypoint=role_entrypoint) }@
+{%-    else -%}
+Removed in: a future release
+{%-    endif -%}
+{%-    if data['removed_from_collection'] and data['removed_from_collection'] != collection %}
+ of @{ data['removed_from_collection'] | html_ify(role_entrypoint=role_entrypoint) }@
+{%-    endif -%}
+  </p>
+  <p>@{ 'Why: ' ~ data['why'] | html_ify(role_entrypoint=role_entrypoint) | rst_indent(2, blank=true) }@</p>
+  <p>@{ 'Alternative: ' ~ data['alternative'] | html_ify(role_entrypoint=role_entrypoint) | rst_indent(2, blank=true) }@</p>
+{%   endif %}
+{% endmacro %}
+
+
+{% macro deprecation_marker(plugin_info) %}
+  {%- if plugin_info.deprecation -%}
+    :ansdeprecatedmarker:`@{
+      (
+        { "date": plugin_info.deprecation.removed_at_date }
+        if for_official_docsite else
+        { "date": plugin_info.deprecation.removed_at_date, "version": plugin_info.deprecation.removed_in }
+      ) | antsibull_to_json | rst_escape
+    }@`
+  {%- endif -%}
+{% endmacro %}
+
+
+{% macro collection_deprecation_marker(collection_metadata) %}
+  {%- if for_official_docsite and collection_metadata.deprecation_info -%}
+    :ansdeprecatedmarker:`@{
+      { "version": collection_metadata.removal_ansible_major_version } | antsibull_to_json | rst_escape
+    }@`
+  {%- endif -%}
+{% endmacro %}
+
+
+{% macro collection_deprecation_note() %}
+{%   if for_official_docsite and collection_deprecation_info %}
+
+.. note::
+    @{ collection_deprecation_info | rst_ify | rst_indent(4) }@
+
+{%   endif %}
+{% endmacro %}

@@ -1,1 +1,0 @@
-# Ansible collection modules package

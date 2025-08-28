@@ -22,7 +22,6 @@ options:
             - Required for API-based modules
         type: str
         required: false
-        no_log: true
 
 notes:
     - This module requires TrueNAS SCALE 25.04 (Fangtooth) or later for Incus support

@@ -1,0 +1,56 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+{% if antsibull_docs_version %}
+.. Created with antsibull-docs @{ antsibull_docs_version }@
+{% else %}
+.. Created with antsibull-docs
+{% endif %}
+
+{% set title = plugin_name ~ ' ' ~ plugin_type -%}
+
+@{ title }@
+@{ '+' * title|column_width }@
+
+{% if collection == 'ansible.builtin' -%}
+- This redirect is part of ``ansible-core`` and included in all Ansible
+  installations. In most cases, you can use the short module name
+  ``@{ plugin_name.rsplit('.', 1)[-1] }@``{% if plugin_type == 'module' %} even without specifying the `collections keyword
+  <https://docs.ansible.com/ansible/latest/collections_guide/collections_using_playbooks.html#using-collections-in-playbooks>`__{% endif %}.
+  Despite that, we recommend you use the `Fully Qualified Collection Name (FQCN)
+  <https://docs.ansible.com/ansible/latest/reference_appendices/glossary.html#term-Fully-Qualified-Collection-Name-FQCN>`__
+  ``@{ plugin_name }@`` for easy linking to the {% if plugin_type == 'module' %}module{% else %}plugin{% endif %}
+  documentation and to avoid conflicting with other collections that may have
+  the same module name.
+{% else %}
+- This redirect is part of the `@{collection}@ collection <@{ collection | collection_url }@>`_{% if collection_version %} (version @{ collection_version }@){% endif %}.
+
+{%   if not deprecation %}
+  To use it in a playbook, specify: ``@{plugin_name}@``.
+{%   endif %}
+{% endif %}
+
+{% if deprecation %}
+- This redirect has been **deprecated**. Please update your tasks to use the new name ``@{ redirect }@`` instead.
+{%   if deprecation.removal_version is defined %}
+  It will be removed in version @{ deprecation.removal_version | rst_ify }@ of @{ collection }@.
+{%   elif deprecation.removal_date is defined %}
+  It will be removed in a major release after @{ deprecation.removal_date | rst_ify }@ of @{ collection }@.
+{%   else %}
+  It will eventually be removed from @{ collection_name }@.
+{%   endif %}
+{% endif %}
+- This is a redirect to the @{ redirect }@ {% if plugin_type == 'module' %}module{% else %}@{ plugin_type }@ plugin{% endif %}.
+{% if collection != 'ansible.builtin' -%}
+{%   if redirect_is_symlink %}
+- This redirect also works with Ansible 2.9.
+{%   else %}
+- This redirect does **not** work with Ansible 2.9.
+{%   endif %}
+{% endif %}
+{% if deprecation and deprecation.warning_text is defined %}
+- The collection contains the following information on this deprecation: @{ deprecation.warning_text | rst_ify }@
+{% endif %}

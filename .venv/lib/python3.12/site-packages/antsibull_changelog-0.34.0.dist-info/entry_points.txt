@@ -1,0 +1,2 @@
+[console_scripts]
+antsibull-changelog = antsibull_changelog.cli:main

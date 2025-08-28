@@ -1,0 +1,14 @@
+// Copyright (c) Ansible and contributors
+// GNU General Public License v3.0+ (see https://www.gnu.org/licenses/gpl-3.0.txt)
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+@use 'default-colors-light' as light;
+@use 'default-colors-dark' as dark;
+
+:root {
+  @include light.colors;
+
+  @media (prefers-color-scheme: dark) {
+    @include dark.colors;
+  }
+}

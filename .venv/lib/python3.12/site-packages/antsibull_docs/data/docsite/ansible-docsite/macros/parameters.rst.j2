@@ -1,0 +1,309 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+{% from 'macros/choiceslist.rst.j2' import in_rst as choices_rst with context %}
+{% from 'macros/choiceslist.rst.j2' import in_html as choices_html with context %}
+{% from 'macros/deprecates.rst.j2' import in_rst as deprecates_rst with context %}
+{% from 'macros/deprecates.rst.j2' import in_html as deprecates_html with context %}
+{% from 'macros/version_added.rst.j2' import version_added_rst, version_added_html %}
+
+{% macro in_rst(elements, suboption_key='suboptions', parameter_html_prefix='', role_entrypoint=None) %}
+.. tabularcolumns:: \X{1}{3}\X{2}{3}
+
+.. list-table::
+  :width: 100%
+  :widths: auto
+  :header-rows: 1
+  :class: longtable ansible-option-table
+
+  * - Parameter
+    - Comments
+{% for key, value in elements recursive %}
+{#   parameter name with required and/or introduced label #}
+
+  * - .. raw:: html
+
+        {% for i in range(1, loop.depth) %}<div class="ansible-option-indent"></div>{% endfor %}<div class="ansible-option-cell">
+{% for full_key in value['full_keys'] %}
+        <div class="ansibleOptionAnchor" id="parameter-@{ parameter_html_prefix }@{% for part in full_key %}@{ part | urlencode }@{% if not loop.last %}/{% endif %}{% endfor %}"></div>
+{% endfor %}
+{% if loop.depth > 1 %}
+
+      .. raw:: latex
+
+        \hspace{@{ 0.02 * loop.depth0 }@\textwidth}\begin{minipage}[t]{@{ 0.32 - 0.02 * loop.depth0 }@\textwidth}
+{% endif %}
+
+{% for full_key in value['full_keys_rst'] %}
+      .. _@{ rst_option_ref(plugin_name, plugin_type, role_entrypoint=role_entrypoint, option=full_key) }@:
+{% endfor %}
+
+      .. rst-class:: ansible-option-title
+
+      **@{ key }@**
+
+      .. raw:: html
+
+        <a class="ansibleOptionLink" href="#parameter-@{ parameter_html_prefix }@{% for part in value['full_key'] %}@{ part | urlencode }@{% if not loop.last %}/{% endif %}{% endfor %}" title="Permalink to this option"></a>
+
+      .. ansible-option-type-line::
+{%   if value['aliases'] %}
+
+        :ansible-option-aliases:`aliases: @{ value['aliases']|join(', ') }@`
+{%   endif %}
+
+        :ansible-option-type:`@{ value['type'] | documented_type }@`
+        {%- if value['type'] == 'list' and value['elements'] is not none %} / :ansible-option-elements:`elements=@{ value['elements'] | documented_type }@`{% endif -%}
+        {%- if value['required'] %} / :ansible-option-required:`required`{% endif %}
+{%-   if value['version_added'] is still_relevant(collection=value['version_added_collection'] or collection) %}
+
+
+      :ansible-option-versionadded:`added in @{ version_added_rst(value['version_added'], value['version_added_collection'] or collection) }@`
+{%   endif %}
+{%-   if plugin_type != 'module' %}
+
+
+@{     deprecates_rst(value['deprecated'], collection, 6, role_entrypoint=role_entrypoint) }@
+{%   endif %}
+
+
+      .. raw:: html
+
+        </div>
+{% if loop.depth > 1 %}
+
+      .. raw:: latex
+
+        \end{minipage}
+{% endif %}
+
+{#   description #}
+    - .. raw:: html
+
+        {% for i in range(1, loop.depth) %}<div class="ansible-option-indent-desc"></div>{% endfor %}<div class="ansible-option-cell">
+
+{%   for desc in value['description'] %}
+      @{ desc | replace('\n', '\n    ') | rst_ify(role_entrypoint=role_entrypoint) | rst_indent(6) }@
+
+{%   endfor %}
+{#   default / choices #}
+{%   if value['type'] == 'bool' %}
+{%     set _x = value.update({'choices': [false, true]}) %}
+{%   endif %}
+{#   Show possible choices and highlight details #}
+{%   if value['choices'] %}
+
+      .. rst-class:: ansible-option-line
+
+      :ansible-option-choices:`Choices:`
+
+@{     choices_rst(value['choices'], value['default'], role_entrypoint=role_entrypoint) }@
+{%   endif %}
+{# Show default value, when multiple choice or no choices #}
+{%   if value['default'] is list or (value['default'] is not none and value['default'] not in value['choices']) %}
+
+      .. rst-class:: ansible-option-line
+
+      :ansible-option-default-bold:`Default:` :ansible-option-default:`@{ value['default'] | antsibull_to_json | rst_escape(escape_ending_whitespace=true) | rst_indent(6, blank=true) }@`
+{%   endif %}
+{#   Configuration #}
+{%   if plugin_type != 'module' and plugin_type != 'role' and (value['ini'] or value['env'] or value['vars'] or value['keyword'] or value['cli']) %}
+
+      .. rst-class:: ansible-option-line
+
+      :ansible-option-configuration:`Configuration:`
+
+{%     if value['ini'] %}
+      - INI {% if value['ini'] | length == 1 %}entry{% else %}entries{% endif %}:
+{%       for ini in value['ini'] %}
+
+        .. code-block:: ini
+
+          [@{ ini['section'] }@]
+{%        if value['default'] is none %}
+          @{ ini['key'] }@ = VALUE
+{%        else %}
+          @{ ini['key'] }@ = @{ value['default'] | antsibull_to_ini_value | rst_indent(10, blank=true) }@
+{%        endif %}
+
+{%         if ini['version_added'] is still_relevant(collection=ini['version_added_collection'] or collection) %}
+        :ansible-option-versionadded:`added in @{ version_added_rst(ini['version_added'], ini['version_added_collection'] or collection) }@`
+{%         endif %}
+@{         deprecates_rst(ini['deprecated'], collection, 8, role_entrypoint=role_entrypoint) }@
+{%       endfor %}
+{%     endif %}
+{%     for env in value['env'] %}
+      - Environment variable: :envvar:`@{ env['name'] | rst_escape(escape_ending_whitespace=true) }@`
+{%       if env['version_added'] is still_relevant(collection=env['version_added_collection'] or collection) %}
+
+        :ansible-option-versionadded:`added in @{ version_added_rst(env['version_added'], env['version_added_collection'] or collection) }@`
+{%       endif %}
+@{       deprecates_rst(env['deprecated'], collection, 8, role_entrypoint=role_entrypoint) }@
+{%     endfor %}
+{%     for mycli in value['cli'] %}
+      - CLI argument: @{ mycli['option'] | rst_escape }@
+{%       if mycli['version_added'] is still_relevant(collection=mycli['version_added_collection'] or collection) %}
+
+        :ansible-option-versionadded:`added in @{ version_added_rst(mycli['version_added'], mycli['version_added_collection'] or collection) }@`
+{%       endif %}
+@{       deprecates_rst(mycli['deprecated'], collection, 8, role_entrypoint=role_entrypoint) }@
+{%     endfor %}
+{%     for kw in value['keyword'] %}
+      - Keyword: @{ kw['name'] | rst_escape }@
+{%       if kw['version_added'] is still_relevant(collection=kw['version_added_collection'] or collection) %}
+
+        :ansible-option-versionadded:`added in @{ version_added_rst(kw['version_added'], kw['version_added_collection'] or collection) }@`
+{%       endif %}
+@{       deprecates_rst(kw['deprecated'], collection, 8, role_entrypoint=role_entrypoint) }@
+{%     endfor %}
+{%     for myvar in value['vars'] %}
+      - Variable: @{ myvar['name'] | rst_escape }@
+{%       if myvar['version_added'] is still_relevant(collection=myvar['version_added_collection'] or collection) %}
+
+        :ansible-option-versionadded:`added in @{ version_added_rst(myvar['version_added'], myvar['version_added_collection'] or collection) }@`
+{%       endif %}
+@{       deprecates_rst(myvar['deprecated'], collection, 8, role_entrypoint=role_entrypoint) }@
+{%     endfor %}
+{%   endif %}
+
+      .. raw:: html
+
+        </div>
+{%   if value[suboption_key] %}
+    @{ loop(value[suboption_key] | dictsort) }@
+{%   endif %}
+{% endfor %}
+{% endmacro %}
+
+{##################################################################################################################}
+
+{% macro in_html(elements, suboption_key='suboptions', parameter_html_prefix='', role_entrypoint=None) %}
+.. raw:: html
+
+  <table class="colwidths-auto ansible-option-table docutils align-default" style="width: 100%">
+  <thead>
+  <tr class="row-odd">
+    <th class="head"><p>Parameter</p></th>
+    <th class="head"><p>Comments</p></th>
+  </tr>
+  </thead>
+  <tbody>
+{% set row_class = cycler('even', 'odd') %}
+{% for key, value in elements recursive %}
+{#   parameter name with required and/or introduced label #}
+  <tr class="row-@{ row_class.next() }@">
+    <td>{% for i in range(1, loop.depth) %}<div class="ansible-option-indent"></div>{% endfor %}<div class="ansible-option-cell">
+{%   for full_key in value['full_keys'] %}
+      <div class="ansibleOptionAnchor" id="parameter-@{ parameter_html_prefix }@{% for part in full_key %}@{ part | urlencode }@{% if not loop.last %}/{% endif %}{% endfor %}"></div>
+{%   endfor %}
+      <p class="ansible-option-title"><strong>@{ key | escape }@</strong></p>
+      <a class="ansibleOptionLink" href="#parameter-@{ parameter_html_prefix }@{% for part in value['full_key'] %}@{ part | urlencode }@{% if not loop.last %}/{% endif %}{% endfor %}" title="Permalink to this option"></a>
+{%   if value['aliases'] %}
+      <p class="ansible-option-type-line"><span class="ansible-option-aliases">aliases: @{ value['aliases']|join(', ') }@</span></p>
+{%   endif %}
+      <p class="ansible-option-type-line">
+        <span class="ansible-option-type">@{ value['type'] | documented_type }@</span>
+{%   if value['type'] == 'list' and value['elements'] is not none %}
+        / <span class="ansible-option-elements">elements=@{ value['elements'] | documented_type }@</span>
+{%   endif %}
+{%   if value['required'] %}
+        / <span class="ansible-option-required">required</span>
+{%   endif %}
+      </p>
+{%   if value['version_added'] is still_relevant(collection=value['version_added_collection'] or collection) %}
+      <p><em class="ansible-option-versionadded">added in @{ version_added_html(value['version_added'], value['version_added_collection'] or collection) }@</em></p>
+{%   endif %}
+{%   if plugin_type != 'module' %}
+@{     deprecates_html(value['deprecated'], collection, role_entrypoint=role_entrypoint) }@
+{%   endif %}
+    </div></td>
+{#   description #}
+    <td>{% for i in range(1, loop.depth) %}<div class="ansible-option-indent-desc"></div>{% endfor %}<div class="ansible-option-cell">
+{%   for desc in value['description'] %}
+      <p>@{ desc | html_ify(role_entrypoint=role_entrypoint) | rst_indent(6, blank=true) }@</p>
+{%   endfor %}
+{#   default / choices #}
+{%   if value['type'] == 'bool' %}
+{%     set _x = value.update({'choices': [false, true]}) %}
+{%   endif %}
+{#   Show possible choices and highlight details #}
+{%   if value['choices'] %}
+      <p class="ansible-option-line"><strong class="ansible-option-choices">Choices:</strong></p>
+@{     choices_html(value['choices'], value['default'], role_entrypoint=role_entrypoint) }@
+{%   endif %}
+{#   Show default value, when multiple choice or no choices #}
+{%   if value['default'] is list or (value['default'] is not none and value['default'] not in value['choices']) %}
+      <p class="ansible-option-line"><strong class="ansible-option-default-bold">Default:</strong> <code class="ansible-value literal notranslate ansible-option-default">@{ value['default'] | antsibull_to_json | escape | rst_indent(6, blank=true) }@</code></p>
+{%   endif %}
+{#   Configuration #}
+{%   if plugin_type != 'module' and plugin_type != 'role' and (value['ini'] or value['env'] or value['vars'] or value['keyword'] or value['cli']) %}
+      <p class="ansible-option-line"><strong class="ansible-option-configuration">Configuration:</strong></p>
+      <ul class="simple">
+{%     if value['ini'] %}
+      <li>
+        <p>INI {% if value['ini'] | length == 1 %}entry{% else %}entries{% endif %}</p>
+{%       for ini in value['ini'] %}
+        <div class="highlight-YAML+Jinja notranslate"><div class="highlight"><pre><span class="p p-Indicator">[</span><span class="nv">@{ ini['section'] | escape }@</span><span class="p p-Indicator">]</span>
+{%         if value['default'] is none %}
+  <span class="l l-Scalar l-Scalar-Plain">@{ ini['key'] | escape }@ = VALUE</span></pre></div></div>
+{%         else %}
+  <span class="l l-Scalar l-Scalar-Plain">@{ ini['key'] | escape }@ = @{ value['default'] | antsibull_to_ini_value | escape }@</span></pre></div></div>
+{%         endif %}
+{%         if ini['version_added'] is still_relevant(collection=ini['version_added_collection'] or collection) %}
+        <p><em class="ansible-option-versionadded">added in @{ version_added_html(ini['version_added'], ini['version_added_collection'] or collection) }@</em></p>
+{%         endif %}
+@{         deprecates_html(ini['deprecated'], collection, role_entrypoint=role_entrypoint) }@
+{%       endfor %}
+      </li>
+{%     endif %}
+{%     for env in value['env'] %}
+      <li>
+        <p>Environment variable: <code class="xref std std-envvar literal notranslate">@{ env['name'] | escape }@</code></p>
+{%       if env['version_added'] is still_relevant(collection=env['version_added_collection'] or collection) %}
+        <p><em class="ansible-option-versionadded">added in @{ version_added_html(env['version_added'], env['version_added_collection'] or collection) }@</em></p>
+{%       endif %}
+@{       deprecates_html(env['deprecated'], collection, role_entrypoint=role_entrypoint) }@
+      </li>
+{%     endfor %}
+{%     for mycli in value['cli'] %}
+      <li>
+        <p>CLI argument: @{ mycli['option'] | escape }@</p>
+{%       if mycli['version_added'] is still_relevant(collection=mycli['version_added_collection'] or collection) %}
+        <p><em class="ansible-option-versionadded">added in @{ version_added_html(mycli['version_added'], mycli['version_added_collection'] or collection) }@</em></p>
+{%       endif %}
+@{       deprecates_html(mycli['deprecated'], collection, role_entrypoint=role_entrypoint) }@
+      </li>
+{%     endfor %}
+{%     for kw in value['keyword'] %}
+      <li>
+        <p>Keyword: @{ kw['name'] | escape }@</p>
+{%       if kw['version_added'] is still_relevant(collection=kw['version_added_collection'] or collection) %}
+        <p><em class="ansible-option-versionadded">added in @{ version_added_html(kw['version_added'], kw['version_added_collection'] or collection) }@</em></p>
+{%       endif %}
+@{       deprecates_html(kw['deprecated'], collection, role_entrypoint=role_entrypoint) }@
+      </li>
+{%     endfor %}
+{%     for myvar in value['vars'] %}
+      <li>
+        <p>Variable: @{ myvar['name'] | escape }@</p>
+{%       if myvar['version_added'] is still_relevant(collection=myvar['version_added_collection'] or collection) %}
+        <p><em class="ansible-option-versionadded">added in @{ version_added_html(myvar['version_added'], myvar['version_added_collection'] or collection) }@</em></p>
+{%       endif %}
+@{       deprecates_html(myvar['deprecated'], collection, role_entrypoint=role_entrypoint) }@
+      </li>
+{%     endfor %}
+      </ul>
+{%   endif %}
+    </div></td>
+  </tr>
+{%   if value[suboption_key] %}
+@{     loop(value[suboption_key] | dictsort) }@
+{%   endif %}
+{% endfor %}
+  </tbody>
+  </table>
+
+{% endmacro %}

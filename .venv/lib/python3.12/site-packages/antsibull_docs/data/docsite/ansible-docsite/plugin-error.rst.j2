@@ -1,0 +1,44 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+.. Document meta section
+
+:orphan:
+{% if edit_on_github_url %}
+:github_url: @{ edit_on_github_url }@?description=%23%23%23%23%23%20SUMMARY%0A%3C!---%20Your%20description%20here%20--%3E%0A%0A%0A%23%23%23%23%23%20ISSUE%20TYPE%0A-%20Docs%20Pull%20Request%0A%0A%2Blabel:%20docsite_pr
+{% endif %}
+
+{% if antsibull_docs_version %}
+.. meta::
+  :antsibull-docs: @{ antsibull_docs_version }@
+
+{% endif %}
+.. Document body
+
+.. Anchors
+
+.. _@{ rst_plugin_ref(plugin_name, plugin_type) }@:
+
+.. Title
+
+{% set title = plugin_name ~ ' ' ~ plugin_type -%}
+
+@{ title }@
+@{ '+' * title|column_width }@
+
+
+The documentation for the @{ plugin_type }@ plugin, @{ plugin_name }@,  was malformed.
+
+The errors were:
+
+{% for error in nonfatal_errors %}
+* .. code-block:: text
+
+@{   error | indent(width=8, first=True) }@
+
+{% endfor %}
+
+File a bug with the `@{ collection }@ collection <@{ collection_issue_tracker or (collection | collection_url) }@>`_ in order to have it corrected.

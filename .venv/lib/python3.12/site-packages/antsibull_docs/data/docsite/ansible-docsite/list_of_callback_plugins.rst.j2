@@ -1,0 +1,33 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+{% from 'macros/deprecates.rst.j2' import deprecation_marker with context -%}
+
+:orphan:
+
+{% if antsibull_docs_version %}
+.. meta::
+  :antsibull-docs: @{ antsibull_docs_version }@
+
+{% endif %}
+.. _list_of_@{ callback_type }@_callback_plugins:
+
+Index of all @{ callback_type | capitalize }@ Callback Plugins
+=============@{ '=' * (callback_type | column_width) }@=================
+
+See :ref:`list_of_callback_plugins` for the list of *all* callback plugins.
+
+{% for collection_name, plugins in per_collection_plugins.items() | sort %}
+@{ collection_name }@
+@{ '-' * (collection_name | column_width) }@
+
+{%   for plugin_name, plugin_info in plugins.items() | sort %}
+* :ansplugin:`@{ collection_name }@.@{ plugin_name }@#callback` -- @{ plugin_info.short_description | rst_ify(plugin_fqcn=collection_name ~ '.' ~ plugin_name, plugin_type='callback') }@ @{ deprecation_marker(plugin_info) }@
+{%   endfor %}
+
+{% else %}
+No public @{ callback_type }@ callback plugin found.
+{% endfor %}

@@ -1,0 +1,55 @@
+# Development Makefile - includes upstream + testing
+# Usage: make -f Makefile.dev <target>
+
+# Include upstream Makefile
+include Makefile
+
+# Ansible-test sanity validation
+sanity-test::
+	@echo "=== Running ansible-test sanity validation ==="
+	@rm -rf .ansible-test-tmp
+	@mkdir -p .ansible-test-tmp/ansible_collections/arensb/truenas
+	@cp -r plugins/ galaxy.yml meta/ .git .ansible-test-tmp/ansible_collections/arensb/truenas/ 2>/dev/null || true
+	@cd .ansible-test-tmp/ansible_collections/arensb/truenas && \
+	export LANG=C.utf8 LC_ALL=C.utf8 && \
+	ansible-test sanity --python 3.12 --untracked truenas_incus_instance truenas_incus_exec
+	@echo "✅ ansible-test sanity passed"
+
+# Full validation (upstream + ansible-test)
+validate:: lint check-docs sanity-test
+	@echo "🎉 All validations passed!"
+
+# Unit tests
+unit-test::
+	@echo "=== Running unit tests ==="
+	@cd tests/unit && python3 -m pytest plugins/modules/ -v
+	@echo "✅ Unit tests passed"
+
+# Integration test syntax validation
+integration-test-syntax::
+	@echo "=== Validating integration test syntax ==="
+	@ansible-playbook --syntax-check tests/integration/targets/truenas_incus_instance/tasks/main.yml
+	@ansible-playbook --syntax-check tests/integration/targets/truenas_incus_exec/tasks/main.yml
+	@echo "✅ Integration test syntax valid"
+
+# Example playbook validation
+example-syntax::
+	@echo "=== Validating example playbook syntax ==="
+	@ansible-playbook --syntax-check examples/incus_container_example.yml
+	@ansible-playbook --syntax-check examples/incus_matchbox_example.yml
+	@echo "✅ Example syntax valid"
+
+# Complete development validation
+dev-validate:: validate unit-test integration-test-syntax example-syntax
+	@echo "🚀 Complete development validation passed!"
+
+# Clean development artifacts
+clean::
+	$(RM) -r ansible_collections/
+	$(RM) -r .ansible-test-tmp/
+	$(RM) -r tests/output/
+	$(RM) -r .pytest_cache/
+	find . -name "*.pyc" -delete
+	find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+.PHONY: sanity-test validate unit-test integration-test-syntax example-syntax dev-validate

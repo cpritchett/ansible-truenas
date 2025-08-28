@@ -1,0 +1,110 @@
+name: Development Validation
+
+on:
+  push:
+    branches: [ development, feat/incus-support ]
+  pull_request:
+    branches: [ development ]
+
+jobs:
+  upstream-validation:
+    name: Upstream Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-venv
+          
+      - name: Run upstream lint
+        run: make lint
+        
+      - name: Run upstream doc check  
+        run: make check-docs
+
+  ansible-test-validation:
+    name: Ansible Test Sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: Install ansible-core
+        run: pip install ansible-core
+        
+      - name: Run ansible-test sanity
+        run: make -f Makefile.dev sanity-test
+        env:
+          LANG: C.utf8
+          LC_ALL: C.utf8
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: Install pytest
+        run: pip install pytest
+        
+      - name: Run unit tests
+        run: make -f Makefile.dev unit-test
+
+  syntax-validation:
+    name: Syntax Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: Install ansible-core
+        run: pip install ansible-core
+        
+      - name: Validate integration test syntax
+        run: make -f Makefile.dev integration-test-syntax
+        
+      - name: Validate example syntax
+        run: make -f Makefile.dev example-syntax
+
+  collection-build:
+    name: Collection Build Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: Install ansible-core
+        run: pip install ansible-core
+        
+      - name: Build collection
+        run: make tarball
+        
+      - name: Upload collection artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ansible-collection-tarball
+          path: arensb-truenas-*.tar.gz

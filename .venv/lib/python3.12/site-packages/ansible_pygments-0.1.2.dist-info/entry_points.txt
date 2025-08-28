@@ -1,0 +1,8 @@
+[pygments.lexers]
+Ansible-output=ansible_pygments.lexers:AnsibleOutputLexer
+ansible-output=ansible_pygments.lexers:AnsibleOutputLexer
+
+[pygments.styles]
+Ansible=ansible_pygments.styles:AnsibleStyle
+ansible=ansible_pygments.styles:AnsibleStyle
+

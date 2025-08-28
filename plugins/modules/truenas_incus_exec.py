@@ -7,6 +7,8 @@
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
+# Execute commands in Incus instances on TrueNAS SCALE 25.04+
+
 DOCUMENTATION = r'''
 ---
 module: truenas_incus_exec
@@ -118,21 +120,20 @@ changed:
 '''
 
 from ansible.module_utils.basic import AnsibleModule
-from ..module_utils.rest_api import RestApiClient
-import json
+from ansible_collections.arensb.truenas.plugins.module_utils.rest_api import RestApiClient
 import shlex
 
 
 def get_instance_id(api_client, name):
     """Get instance ID by name"""
     response = api_client.call('/virt/instance', method='GET')
-    
+
     if response.status_code == 200:
         instances = response.json()
         for instance in instances:
             if instance.get('name') == name:
                 return instance.get('id')
-    
+
     return None
 
 
@@ -151,24 +152,24 @@ def execute_command(api_client, instance_id, command, timeout=300, environment=N
         cmd_list = ["/bin/sh", "-c", command]
     else:
         cmd_list = command
-    
+
     # Add chdir if specified
     if chdir:
         shell_cmd = f"cd {shlex.quote(chdir)} && {command}"
         cmd_list = ["/bin/sh", "-c", shell_cmd]
-    
+
     payload = {
         'command': cmd_list,
         'wait_for_websocket': False,
         'interactive': False,
         'timeout': timeout
     }
-    
+
     if environment:
         payload['environment'] = environment
-    
+
     response = api_client.call(f'/virt/instance/{instance_id}/exec', method='POST', data=payload, timeout=timeout + 10)
-    
+
     if response.status_code == 200:
         result = response.json()
         return {
@@ -193,22 +194,22 @@ def main():
         chdir=dict(type='str', required=False),
         timeout=dict(type='int', default=300),
         environment=dict(type='dict', required=False),
-        api_url=dict(type='str', required=False),
+        api_url=dict(type='str', required=False, default='https://localhost/api/v2.0'),
         api_key=dict(type='str', required=False, no_log=True)
     )
-    
+
     module = AnsibleModule(
         argument_spec=module_args,
         supports_check_mode=True
     )
-    
+
     # Initialize REST API client
     api_client = RestApiClient(
         module,
         api_url=module.params.get('api_url'),
         api_key=module.params.get('api_key')
     )
-    
+
     name = module.params['name']
     command = module.params['command']
     creates = module.params.get('creates')
@@ -216,13 +217,13 @@ def main():
     chdir = module.params.get('chdir')
     timeout = module.params['timeout']
     environment = module.params.get('environment')
-    
+
     # Get instance ID
     instance_id = get_instance_id(api_client, name)
-    
+
     if not instance_id:
         module.fail_json(msg=f"Instance '{name}' not found")
-    
+
     # Check creates/removes conditions
     if creates:
         if check_path_exists(api_client, instance_id, creates):
@@ -233,7 +234,7 @@ def main():
                 rc=0,
                 msg=f"Path {creates} already exists, skipping command"
             )
-    
+
     if removes:
         if not check_path_exists(api_client, instance_id, removes):
             module.exit_json(
@@ -243,14 +244,14 @@ def main():
                 rc=0,
                 msg=f"Path {removes} does not exist, skipping command"
             )
-    
+
     # Execute the command
     if not module.check_mode:
         result = execute_command(
             api_client, instance_id,
             command, timeout, environment, chdir
         )
-        
+
         module.exit_json(
             changed=True,
             stdout=result['stdout'],

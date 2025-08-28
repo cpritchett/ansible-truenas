@@ -1,0 +1,42 @@
+{#
+  Copyright (c) Ansible Project
+  GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+  SPDX-License-Identifier: GPL-3.0-or-later
+#}
+
+.. Created with antsibull-docs @{ antsibull_docs_version }@
+
+.. _docsite_root_index:
+
+Welcome to my Ansible collection documentation
+==============================================
+
+{% if collections | length == 1 %}
+This docsite contains documentation of @{ collections[0] }@.
+{% elif collections | length > 1 %}
+This docsite contains documentation of @{ ', '.join(collections[:-1]) }@, and @{ collections[-1] }@.
+{% else %}
+This docsite contains documentation of some collections.
+{% endif %}
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Collections:
+
+   collections/index
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Plugin indexes:
+   :glob:
+
+   collections/index_*
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Reference indexes:
+
+   collections/environment_variables
